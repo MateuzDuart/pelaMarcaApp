@@ -37,7 +37,6 @@ async function readPlayers(): Promise<Player[]> {
   if (useMemoryFallback) return memoryPlayers;
 
   const data = await AsyncStorage.getItem(STORAGE_KEY);
-  console.log(data)
   if (!data) return [];
 
   try {

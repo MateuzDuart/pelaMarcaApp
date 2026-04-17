@@ -41,6 +41,7 @@ function buildTeams(
   for (let i = 0; i < maxTeams; i += 1) {
     teams.push({
       id: `team-${i + 1}`,
+      name: `Time ${i + 1}`,
       players: [],
     });
   }
@@ -82,16 +83,17 @@ function readPositiveInt(value: string, fallback: number): number {
 }
 
 export default function Teams() {
-  const { players } = usePlayers();
+  const { players, isLoading: isPlayersLoading } = usePlayers();
   const { maxPlayersPerTeam, isLoading: isLoadingSettings, setMaxPlayersPerTeam } =
     useTeamSettings();
-  const { teamState, isLoading, setGeneratedTeams, createEmptyTeam } = useTeamState(players);
+  const { teamState, isLoading, setGeneratedTeams, createEmptyTeam, deleteTeam } = useTeamState(players, isPlayersLoading);
   const [playersPerTeamInput, setPlayersPerTeamInput] = useState(
     String(maxPlayersPerTeam)
   );
   const [maxTeamsInput, setMaxTeamsInput] = useState('4');
   const [priorityUntilInput, setPriorityUntilInput] = useState('10');
   const [isSortSectionCollapsed, setIsSortSectionCollapsed] = useState(false);
+  const [emptyTeamNameInput, setEmptyTeamNameInput] = useState('');
 
   useEffect(() => {
     if (isLoadingSettings) return;
@@ -121,6 +123,23 @@ export default function Teams() {
               maxPriority
             );
             void setGeneratedTeams(generatedTeams);
+          },
+        },
+      ]
+    );
+  }
+
+  function handleDeleteTeam(teamId: string) {
+    Alert.alert(
+      'Deletar time',
+      'Tem certeza que deseja deletar este time?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Deletar',
+          style: 'destructive',
+          onPress: () => {
+            void deleteTeam(teamId);
           },
         },
       ]
@@ -179,9 +198,23 @@ export default function Teams() {
             <TouchableOpacity style={styles.button} onPress={handleSortTeams}>
               <Text style={styles.buttonText}>Sortear Times</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => void createEmptyTeam()}>
-              <Text style={styles.buttonText}>Criar time vazio</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 24 }}>
+              <Text style={styles.label}>Nome do novo time vazio</Text>
+              <TextInput
+                value={emptyTeamNameInput}
+                onChangeText={setEmptyTeamNameInput}
+                style={styles.input}
+                placeholder="Ex: Time dos Amigos"
+                placeholderTextColor="#6B7280"
+              />
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => {
+                const name = emptyTeamNameInput.trim() || `Time ${teamState.teams.length + 1}`;
+                void createEmptyTeam(name);
+                setEmptyTeamNameInput('');
+              }}>
+                <Text style={styles.buttonText}>Criar time vazio</Text>
+              </TouchableOpacity>
+            </View>
           </>
         )}
       </View>
@@ -198,7 +231,17 @@ export default function Teams() {
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
             <View style={styles.teamCard}>
-              <Text style={styles.teamTitle}>Time {index + 1}</Text>
+              <View style={styles.teamHeader}>
+                <Text style={styles.teamTitle}>{item.name}</Text>
+          
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => handleDeleteTeam(item.id)}
+                >
+                  <Text style={styles.deleteButtonText}>Excluir</Text>
+                </TouchableOpacity>
+              </View>
+          
               {item.players.map((player, playerIndex) => (
                 <Text key={player.id} style={styles.playerText}>
                   {playerIndex + 1}. {player.name}
@@ -320,5 +363,24 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     marginTop: 24,
+  },
+  teamHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  
+  deleteButton: {
+    backgroundColor: '#DC2626',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

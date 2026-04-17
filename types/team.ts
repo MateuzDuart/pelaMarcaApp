@@ -2,6 +2,7 @@ import type { Player } from './player';
 
 export type Team = {
   id: string;
+  name: string;
   players: Player[];
 };
 

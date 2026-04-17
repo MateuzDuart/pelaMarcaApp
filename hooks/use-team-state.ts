@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
 
 import { fetchTeamState, saveTeamState } from '../services/team-state-api';
 import type { Player } from '../types/player';
@@ -9,13 +9,14 @@ type UseTeamStateReturn = {
   teamState: TeamState;
   isLoading: boolean;
   setGeneratedTeams: (teams: Team[]) => Promise<void>;
-  createEmptyTeam: () => Promise<void>;
+  createEmptyTeam: (name: string) => Promise<void>;
   movePlayerToReserves: (teamId: string, playerId: string) => Promise<void>;
   moveReserveToTeam: (
     playerId: string,
     teamId: string,
     maxPlayersPerTeam: number
   ) => Promise<void>;
+  deleteTeam: (teamId: string) => Promise<void>
   transferPlayersBetweenTeams: (
     sourceTeamId: string,
     targetTeamId: string,
@@ -33,10 +34,21 @@ function normalizeByPlayers(teamState: TeamState, players: Player[]): TeamState 
   }));
 
   const assignedPlayerIds = new Set(teams.flatMap((team) => team.players.map((p) => p.id)));
-  const reserves = teamState.reserves.filter(
-    (reserve) =>
-      existingPlayerIds.has(reserve.player.id) && !assignedPlayerIds.has(reserve.player.id)
-  );
+  const existingReservesMap = new Map();
+  teamState.reserves.forEach(r => {
+    if (existingPlayerIds.has(r.player.id) && !assignedPlayerIds.has(r.player.id)) {
+      existingReservesMap.set(r.player.id, r);
+    }
+  });
+
+  const newReserves = players
+    .filter(p => !assignedPlayerIds.has(p.id) && !existingReservesMap.has(p.id))
+    .map(player => ({
+      player,
+      reserveTimestamp: Date.now(),
+    }));
+
+  const reserves = [...existingReservesMap.values(), ...newReserves];
 
   const sortedReserves = [...reserves].sort(
     (a, b) => a.reserveTimestamp - b.reserveTimestamp
@@ -56,11 +68,12 @@ function getNextTeamId(teams: Team[]): string {
   return candidate;
 }
 
-export function useTeamState(players: Player[]): UseTeamStateReturn {
+export function useTeamState(players: Player[], isPlayersLoading: boolean = false): UseTeamStateReturn {
   const [teamState, setTeamState] = useState<TeamState>({ teams: [], reserves: [] });
   const [isLoading, setIsLoading] = useState(true);
 
   const loadTeamState = useCallback(async () => {
+    if (isPlayersLoading) return;
     setIsLoading(true);
     try {
       const savedState = await fetchTeamState();
@@ -68,7 +81,7 @@ export function useTeamState(players: Player[]): UseTeamStateReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [players]);
+  }, [players, isPlayersLoading]);
 
   useEffect(() => {
     void loadTeamState();
@@ -81,6 +94,7 @@ export function useTeamState(players: Player[]): UseTeamStateReturn {
   );
 
   useEffect(() => {
+    if (isPlayersLoading || isLoading) return;
     setTeamState((prevState) => {
       const nextState = normalizeByPlayers(prevState, players);
       if (JSON.stringify(prevState) === JSON.stringify(nextState)) {
@@ -89,7 +103,7 @@ export function useTeamState(players: Player[]): UseTeamStateReturn {
       void saveTeamState(nextState);
       return nextState;
     });
-  }, [players]);
+  }, [players, isPlayersLoading, isLoading]);
 
   const setGeneratedTeams = useCallback(
     async (teams: Team[]) => {
@@ -105,9 +119,10 @@ export function useTeamState(players: Player[]): UseTeamStateReturn {
     [players]
   );
 
-  const createEmptyTeam = useCallback(async () => {
+  const createEmptyTeam = useCallback(async (name: string) => {
     const newTeam: Team = {
       id: getNextTeamId(teamState.teams),
+      name,
       players: [],
     };
 
@@ -116,6 +131,34 @@ export function useTeamState(players: Player[]): UseTeamStateReturn {
       players
     );
 
+    setTeamState(nextState);
+    await saveTeamState(nextState);
+  }, [teamState, players]);
+
+  const deleteTeam = useCallback(async (teamId: string) => {
+    const targetTeam = teamState.teams.find((team) => team.id === teamId);
+  
+    if (!targetTeam) return;
+
+    const now = Date.now();
+    const newReserves = (targetTeam.players ?? []).map((player) => ({
+      player,
+      reserveTimestamp: now,
+    }));
+  
+    // Remove o time da lista
+    const updatedTeams = teamState.teams.filter(
+      (team) => team.id !== teamId
+    );
+  
+    const nextState = normalizeByPlayers(
+      {
+        teams: updatedTeams,
+        reserves: [...teamState.reserves, ...newReserves],
+      },
+      players
+    );
+  
     setTeamState(nextState);
     await saveTeamState(nextState);
   }, [teamState, players]);
@@ -247,6 +290,7 @@ export function useTeamState(players: Player[]): UseTeamStateReturn {
     createEmptyTeam,
     movePlayerToReserves,
     moveReserveToTeam,
+    deleteTeam,
     transferPlayersBetweenTeams,
   };
 }

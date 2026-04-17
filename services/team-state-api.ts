@@ -41,7 +41,12 @@ export async function fetchTeamState(): Promise<TeamState> {
     const parsedReserves = Array.isArray(parsed?.reserves) ? parsed.reserves : [];
 
     return {
-      teams: Array.isArray(parsed?.teams) ? parsed.teams : [],
+      teams: Array.isArray(parsed?.teams)
+        ? parsed.teams.map((t: any, idx: number) => ({
+            ...t,
+            name: t.name ?? `Time ${idx + 1}`,
+          }))
+        : [],
       reserves: parsedReserves
         .map((item) => {
           // Backward compatibility: old format stored Player directly.

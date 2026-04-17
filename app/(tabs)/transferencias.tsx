@@ -25,7 +25,7 @@ function shufflePlayers<T>(list: T[]): T[] {
 }
 
 export default function Transferencias() {
-  const { players } = usePlayers();
+  const { players, isLoading: isPlayersLoading } = usePlayers();
   const { maxPlayersPerTeam } = useTeamSettings();
   const {
     teamState,
@@ -33,7 +33,7 @@ export default function Transferencias() {
     movePlayerToReserves,
     moveReserveToTeam,
     transferPlayersBetweenTeams,
-  } = useTeamState(players);
+  } = useTeamState(players, isPlayersLoading);
   const [selectedReservePlayerId, setSelectedReservePlayerId] = useState<string | null>(
     null
   );
@@ -140,14 +140,7 @@ export default function Transferencias() {
     return `${hours}:${minutes}`;
   }
 
-function getTeamDisplayName(teamId: string): string {
-  const [, maybeNumber] = teamId.split('-');
-  const teamNumber = Number(maybeNumber);
-  if (Number.isInteger(teamNumber) && teamNumber > 0) {
-    return `Time ${teamNumber}`;
-  }
-  return teamId;
-}
+
 
   return (
     <ScrollView
@@ -170,7 +163,7 @@ function getTeamDisplayName(teamId: string): string {
           ) : (
             teamState.teams.map((team, teamIndex) => (
               <View key={team.id} style={styles.card}>
-                <Text style={styles.cardTitle}>Time {teamIndex + 1}</Text>
+                <Text style={styles.cardTitle}>{team.name}</Text>
                 {team.players.map((player, playerIndex) => (
                   <View key={player.id} style={styles.playerRow}>
                     <Text style={styles.playerText}>
@@ -255,7 +248,7 @@ function getTeamDisplayName(teamId: string): string {
                   }
                 >
                   <Text style={styles.modalTeamButtonText}>
-                    {getTeamDisplayName(team.id)}
+                    {team.name}
                   </Text>
                 </TouchableOpacity>
               ))
@@ -282,7 +275,7 @@ function getTeamDisplayName(teamId: string): string {
             <Text style={styles.modalTitle}>Preencher time</Text>
             {targetFillTeam ? (
               <Text style={styles.modalSubtitle}>
-                {getTeamDisplayName(targetFillTeam.id)} | faltam {fillMissingCount} jogador(es)
+                {targetFillTeam.name} | faltam {fillMissingCount} jogador(es)
               </Text>
             ) : null}
 
@@ -351,7 +344,7 @@ function getTeamDisplayName(teamId: string): string {
                       }}
                     >
                       <Text style={styles.modalTeamButtonText}>
-                        {getTeamDisplayName(team.id)}
+                        {team.name}
                       </Text>
                     </TouchableOpacity>
                   ))
@@ -364,7 +357,7 @@ function getTeamDisplayName(teamId: string): string {
                 {selectedSourceTeam ? (
                   <>
                     <Text style={styles.modalSubtitle}>
-                      Origem: {getTeamDisplayName(selectedSourceTeam.id)}
+                      Origem: {selectedSourceTeam.name}
                     </Text>
                     {selectedSourceTeam.players.map((player) => (
                       <View key={player.id} style={styles.playerRow}>
@@ -396,7 +389,7 @@ function getTeamDisplayName(teamId: string): string {
                       onPress={() => handleRandomDraw(team)}
                     >
                       <Text style={styles.modalTeamButtonText}>
-                        {getTeamDisplayName(team.id)}
+                        {team.name}
                       </Text>
                     </TouchableOpacity>
                   ))

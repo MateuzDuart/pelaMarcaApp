@@ -17,11 +17,11 @@ export default function Home() {
     usePlayers();
 
   async function handleAddPlayer() {
-    // const added = await addPlayer(name);
-    // if (added) setName('');
-    Array.from({ length: 20 }, (_, index) => {
-     addPlayer(`player-${index + 1}`)
-    });
+    const added = await addPlayer(name);
+    if (added) setName('');
+    // for (let index = 0; index < 20; index++) {
+    //   await addPlayer(`player-${index + 1}`);
+    // }
 
   }
 
